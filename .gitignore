@@ -1,0 +1,5 @@
+/venv
+/config
+/data/*log*
+/.idea
+.DS_Store
