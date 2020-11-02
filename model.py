@@ -28,7 +28,7 @@ class WindGen:
 
 class Battery:
     def __init__(self, capacity, min_soc=0.0, max_soc=1, initial_soc=0.5):
-        """ capacity in kWh"""
+        """ capacity in Wh"""
         self.energy = capacity * 3600 * initial_soc
         self.capacity = capacity * 3600
         self.min_soc = min_soc
@@ -120,6 +120,9 @@ class Model:
         self.wind_unused_energy = 0
         self.diesel_energy = 0
         self.time_scale = time_scale
+        self.current_wind_power = 0
+        self.current_battery_power = 0
+        self.balanser = 0
 
         # power reference history in pairs [time of power update, power]
         self.all_powers = [[[start_time, 0]] for _ in range(self.num_buildings)]
@@ -173,9 +176,15 @@ class Model:
 
         battery_power = self.battery.update(wind_power - balancer, avg_powers, time_delta)
 
+        self.current_wind_power, self.current_battery_power, self.balancer = wind_power, battery_power, balancer
+    
         self.last_update = now
 
-        return [wind_power, battery_power]
+
+    def get_hardware_references(self):
+        """ Prepare data for real-life simualtion considering hardware capabilities """ 
+        scale = 0.25
+        return np.array([self.current_wind_power - self.balancer, sum([h.current_power for h in self.buildings])]) * scale
 
     def save_state(self):
         with open(self._state_file, 'w') as state_file:

@@ -76,10 +76,13 @@ class ThreadSend(threading.Thread):
         battery_power = 0
         while self.run_event.is_set():
             try:
-                wind_power, bp = self.model.process_cycle()
+                self.model.process_cycle()
+                wind_power = self.model.current_wind_power
 
                 if not i % 3:
-                    battery_power = bp
+                    battery_power = self.model.current_battery_power 
+
+                wind_inverter_ref, load_inverter_ref = self.model.get_hardware_references()
 
                 # try:
                 #     send_to_elastic(self.elastic, self.model, wind_power, battery_power)
