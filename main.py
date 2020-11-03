@@ -55,8 +55,10 @@ def send_to_elastic(elastic, model, wind_power, battery_power):
         doc[f'heater_{1 + i}_temperature'] = b.get_temp()
 
     doc['battery_soc'] = model.battery.get_soc()
-    doc['wind_unused_energy'] = model.wind_unused_energy
-    doc['diesel_energy'] = model.diesel_energy
+    doc['wind_unused_energy'] = model.wind_burner.get_energy()
+    doc['diesel_energy'] = model.gen_set.get_energy()
+    doc['wind_unused_power'] = model.wind_burner.current_power
+    doc['diesel_power'] = model.gen_set.current_power
 
     elastic.index(index='laborovaya', body=doc)
 
@@ -77,12 +79,12 @@ class ThreadSend(threading.Thread):
         while self.run_event.is_set():
             try:
                 self.model.process_cycle()
-                wind_power = self.model.current_wind_power
+                wind_power = self.model.wind_gen.current_power
 
                 if not i % 3:
-                    battery_power = self.model.current_battery_power 
+                    battery_power = self.model.battery.current_power
 
-                wind_inverter_ref, load_inverter_ref = self.model.get_hardware_references()
+                gen_inverter_ref, load_inverter_ref = self.model.get_hardware_references()
 
                 # try:
                 #     send_to_elastic(self.elastic, self.model, wind_power, battery_power)
