@@ -1,5 +1,6 @@
 /venv
 /config
-/data/*log*
+/data
 /.idea
 .DS_Store
+/log
