@@ -11,6 +11,7 @@ import numpy as np
 import yaml
 from elasticsearch import Elasticsearch
 
+import battery_controller
 import model_utils
 import modbus_simul_utils
 
@@ -63,13 +64,15 @@ def send_to_elastic(elastic, model, wind_power, battery_power):
 
 class ThreadSend(threading.Thread):
 
-    def __init__(self, run_event, elastic, model, logger):
+    def __init__(self, run_event, elastic, model, logger, charge_controller, discharge_controller):
         threading.Thread.__init__(self)
         self.delay = TIME_QUANT / 3  # energy sensors updates at triple freq
         self.model = model
         self.run_event = run_event
         self.elastic = elastic
         self.logger = logger
+        self.charge_controller = charge_controller
+        self.discharge_controller = discharge_controller
 
     def run(self):
         i = 0
@@ -97,6 +100,8 @@ class ThreadSend(threading.Thread):
                     self.logger.log(OTHERS_LOG, data)
                     # write_wind_data(wind_power)
                     # write_heaters_data(self.model)
+                    # self.charge_controller.update(wind_power / 1000)
+                    # self.discharge_controller.update(- bp / 1000)
                 i += 1
                 time.sleep(self.delay)
 
@@ -135,7 +140,7 @@ def main():
     random.seed(config['seed'])
 
     appenders = {}
-    data_path = config['data_path']
+    data_path = config['log_path']
     appenders[POWER_REFS_LOG] = os.path.join(data_path, 'prefs_log.csv')
     appenders[STATES_LOG] = os.path.join(data_path, 'states_log.csv')
     appenders[COMMON_LOG] = os.path.join(data_path, 'common_log')
@@ -155,10 +160,15 @@ def main():
 
     elastic = Elasticsearch([f"http://{config['elasticsearch']['auth']}@{config['elasticsearch']['host']}"])
 
-    send = ThreadSend(run_event, elastic, model, logger)
-
+    charge_controller = battery_controller.create_controller(config['charge_host'], config['charge_port'], data_path,
+                                                             "charge")
+    discharge_controller = battery_controller.create_controller(config['discharge_host'], config['discharge_port'],
+                                                                data_path, "discharge")
+    send = ThreadSend(run_event, elastic, model, logger, charge_controller, discharge_controller)
     listen = ThreadListen(run_event, model, logger)
 
+    charge_controller.start()
+    discharge_controller.start()
     send.start()
     listen.start()
 
