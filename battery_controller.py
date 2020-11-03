@@ -8,6 +8,7 @@ import time
 class WorkingThread(threading.Thread):
     def __init__(self, run_event, soc, data, min_power, max_power, logger):
         threading.Thread.__init__(self)
+        self.lock = threading.Lock()
         self.run_event = run_event
         self.soc = soc
         self.data = data
@@ -21,11 +22,15 @@ class WorkingThread(threading.Thread):
         self.logger = logger
 
     def update(self, power):
+        self.lock.acquire()
         self.cur_power = power
+        self.lock.release()
 
     def run(self):
         while self.run_event.is_set():
+            self.lock.acquire()
             packet = [self.default_command, self.cur_power]
+            self.lock.release()
             packet = bytearray(struct.pack('>{0}f'.format(len(packet)), *packet))
             time.sleep(self.time_tic)
             self.logger.info("Send command with power: {}".format(self.cur_power))
