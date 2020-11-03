@@ -101,12 +101,12 @@ class ThreadSend(threading.Thread):
                 modbus_simul_utils.write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
                 if not i % 3:
                     data = model_utils.get_weather_and_states_data(self.model, wind_power)
-                    print('send to others: ', data)
+                    #print('send to others: ', data)
                     self.logger.log(OTHERS_LOG, data)
                     modbus_simul_utils.write_wind_data(wind_power)
                     modbus_simul_utils.write_heaters_data(self.model)
-                    self.charge_controller.update(gen_inverter_ref / 1000)
-                    self.discharge_controller.update(- load_inverter_ref / 1000)
+                    # self.charge_controller.update(gen_inverter_ref / 1000)
+                    # self.discharge_controller.update(- load_inverter_ref / 1000)
                 i += 1
                 time.sleep(self.delay)
 
@@ -128,7 +128,7 @@ class ThreadListen(threading.Thread):
                 data = modbus_simul_utils.read_heater_data(i)
                 with self.model.lock:
                     self.model.all_powers[i].append([time.time(), data['cfg_power']])
-            #         self.model.save_state()
+                    self.model.save_state()
             time.sleep(1)
 
 
@@ -153,7 +153,7 @@ def main():
     appenders[OTHERS_LOG] = os.path.join(data_path, 'others_log.csv')
     logger = Logger(appenders)
 
-    model = model_utils.get_model(TIME_QUANT, TIME_SCALE, logger, config['state_file'], config['uninterpolated_data'])
+    model = model_utils.get_model(TIME_QUANT, TIME_SCALE, logger, config['state_file'], config['weather_data'])
 
     try:
         model.load_state(config['state_file'])

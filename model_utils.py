@@ -9,7 +9,7 @@ import pandas as pd
 from model import Building, Model, WindGen, Battery
 
 
-def get_weather_data(TIME_QUANT, TIME_SCALE, nrows=None, weather_data_path='uninterpolated_novikovo.csv'):
+def get_weather_data(TIME_QUANT, TIME_SCALE, nrows=None, weather_data_path=None):
     # nrows = 1000
     print('loading data')
     dfi = pd.read_csv(weather_data_path, sep=',', nrows=nrows)
@@ -63,5 +63,5 @@ def get_weather_and_states_data(model, wind_power):
 
 def get_model(time_quant, time_scale, logger, state_file, weather_data_path):
     dfi = get_weather_data(time_quant, time_scale, nrows=None, weather_data_path=weather_data_path)
-    return Model(create_buildings(time_quant), WindGen(), Battery(30000), dfi, time.time(), logger, state_file,
+    return Model(create_buildings(time_quant), WindGen(), Battery(30000, min_soc=0.3, max_soc=0.7), dfi, time.time(), logger, state_file,
                  time_scale)
