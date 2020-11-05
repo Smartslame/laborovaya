@@ -45,7 +45,7 @@ class Battery(EnergyMeter):
         return self.capacity * self.max_soc - self.energy
 
     def energy_remains(self):
-        return max(self.energy, self.capacity * self.min_soc)
+        return self.energy - self.capacity * self.min_soc
 
 
 class Building(EnergyMeter):
@@ -115,7 +115,7 @@ class Model:
     def get_weather_at_time(self):
         time_quant = (self.dfi.time[1] - self.dfi.time[0]).seconds
         n = int(self.time_passed * self.time_scale / time_quant)
-        n += 2105  # start form non-zero wind
+        n += 1300  # start form non-zero wind
         n %= self.dfi.shape[0]
         print('get row number {0}'.format(n))
         return self.dfi['v'][n], self.dfi['T'][n]

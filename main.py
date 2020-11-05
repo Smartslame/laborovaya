@@ -15,8 +15,8 @@ import battery_controller
 import model_utils
 import modbus_simul_utils
 
-TIME_QUANT = 10
-TIME_SCALE = 60
+TIME_QUANT = 5
+TIME_SCALE = 1
 
 POWER_REFS_LOG = 'POWER_REFS_LOG',
 STATES_LOG = 'STATES_LOG',
@@ -61,14 +61,14 @@ def send_to_elastic(elastic, model, wind_power, battery_power):
     doc['wind_unused_power'] = model.wind_burner.current_power
     doc['diesel_power'] = model.gen_set.current_power
 
-    elastic.index(index='laborovaya', body=doc)
+    elastic.index(index='model', body=doc)
 
 
 class ThreadSend(threading.Thread):
 
     def __init__(self, run_event, elastic, model, logger, charge_controller, discharge_controller):
         threading.Thread.__init__(self)
-        self.delay = TIME_QUANT / 3  # energy sensors updates at triple freq
+        self.delay = TIME_QUANT  # energy sensors updates at triple freq
         self.model = model
         self.run_event = run_event
         self.elastic = elastic
@@ -84,8 +84,8 @@ class ThreadSend(threading.Thread):
                 self.model.process_cycle()
                 wind_power = self.model.wind_gen.current_power
                 print("Wind power = {}".format(wind_power))
-                if not i % 3:
-                    battery_power = self.model.battery.current_power
+
+                battery_power = self.model.battery.current_power
 
                 gen_inverter_ref, load_inverter_ref = self.model.get_hardware_references()
 
@@ -99,14 +99,14 @@ class ThreadSend(threading.Thread):
                                                                                   self.model.battery.get_soc()))
                 self.logger.log(BATTERY_LOG, [battery_power, self.model.battery.get_energy()])
                 modbus_simul_utils.write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
-                if not i % 3:
-                    data = model_utils.get_weather_and_states_data(self.model, wind_power)
-                    #print('send to others: ', data)
-                    self.logger.log(OTHERS_LOG, data)
-                    modbus_simul_utils.write_wind_data(wind_power)
-                    modbus_simul_utils.write_heaters_data(self.model)
-                    # self.charge_controller.update(gen_inverter_ref / 1000)
-                    # self.discharge_controller.update(- load_inverter_ref / 1000)
+
+                data = model_utils.get_weather_and_states_data(self.model, wind_power)
+                #print('send to others: ', data)
+                self.logger.log(OTHERS_LOG, data)
+                modbus_simul_utils.write_wind_data(wind_power)
+                modbus_simul_utils.write_heaters_data(self.model)
+                self.charge_controller.update(gen_inverter_ref / 1000)
+                self.discharge_controller.update(- load_inverter_ref / 1000)
                 i += 1
                 time.sleep(self.delay)
 

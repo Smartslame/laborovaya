@@ -23,7 +23,12 @@ class WorkingThread(threading.Thread):
 
     def update(self, power):
         self.lock.acquire()
-        self.cur_power = power
+        if power <= self.max_power - 0.005 and power >= self.min_power + 0.005:
+            self.cur_power = power
+        elif power > self.max_power - 0.005:
+            self.cur_power = self.max_power - 0.005
+        elif power < self.min_power + 0.005:
+            self.cur_power = self.min_power + 0.005
         self.lock.release()
 
     def run(self):
