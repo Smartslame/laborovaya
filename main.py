@@ -128,7 +128,7 @@ class ThreadListen(threading.Thread):
                 data = modbus_simul_utils.read_heater_data(i)
                 with self.model.lock:
                     self.model.all_powers[i].append([time.time(), data['cfg_power']])
-                    self.model.save_state()
+                    #self.model.save_state()
             time.sleep(1)
 
 
