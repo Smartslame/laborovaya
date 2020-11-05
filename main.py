@@ -97,7 +97,7 @@ class ThreadSend(threading.Thread):
                 print("send to battery:power = {}, energy = {} , soc = {}".format(battery_power,
                                                                                   self.model.battery.get_energy(),
                                                                                   self.model.battery.get_soc()))
-                self.logger.log(BATTERY_LOG, [battery_power, self.model.battery.get_energy()])
+                self.logger.log(BATTERY_LOG, [battery_power, self.model.battery.get_energy(), self.model.battery.get_soc()])
                 modbus_simul_utils.write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
 
                 data = model_utils.get_weather_and_states_data(self.model, wind_power)
