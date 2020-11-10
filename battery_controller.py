@@ -6,10 +6,11 @@ import time
 
 
 class WorkingThread(threading.Thread):
-    def __init__(self, run_event, soc_bat, data, min_power, max_power, name):
+    def __init__(self, run_event, soc, data, min_power, max_power, logger):
         threading.Thread.__init__(self)
+        self.lock = threading.Lock()
         self.run_event = run_event
-        self.soc_bat = soc_bat
+        self.soc = soc
         self.data = data
         self.min_power = min_power
         self.max_power = max_power
@@ -18,37 +19,52 @@ class WorkingThread(threading.Thread):
         self.default_command = float(1)
         self.default_power = float(0)
         self.time_tic = 0.2
-        self.name = name
+        self.logger = logger
 
     def update(self, power):
-        self.cur_power = power
+        self.lock.acquire()
+        if power <= self.max_power - 0.005 and power >= self.min_power + 0.005:
+            self.cur_power = power
+        elif power > self.max_power - 0.005:
+            self.cur_power = self.max_power - 0.005
+        elif power < self.min_power + 0.005:
+            self.cur_power = self.min_power + 0.005
+        self.lock.release()
 
     def run(self):
         while self.run_event.is_set():
+            self.lock.acquire()
             packet = [self.default_command, self.cur_power]
+            self.lock.release()
             packet = bytearray(struct.pack('>{0}f'.format(len(packet)), *packet))
             time.sleep(self.time_tic)
-            logging.info("Send {} command with power: {}".format(self.name, self.cur_power))
-            self.soc_bat.send(packet)
+            self.logger.info("Send command with power: {}".format(self.cur_power))
+            self.soc.send(packet)
 
 
-def create_controller(host, port, log_file, name, min_power=-25., max_power=25.):
+def setup_logger(folder, name):
+    handler = logging.FileHandler(folder + "/" + name + ".log")
+    formatter = logging.Formatter('%(asctime)s.%(msecs)03d  %(message)s')
+    handler.setFormatter(formatter)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+
+    return logger
+
+
+def create_controller(host, port, folder, name, min_power=-25., max_power=25.):
     host = host
     port = int(port)
     min_power = float(min_power)
     max_power = float(max_power)
-    logging.basicConfig(
-        filename=log_file,
-        filemode='w',
-        level=logging.INFO,
-        format='%(asctime)s.%(msecs)03d  %(message)s',
-        datefmt='%d-%m-%Y %H:%M:%S')
-    soc_bat = socket.socket(socket.AF_INET,  # Internet
+    logger = setup_logger(folder, name)
+    soc = socket.socket(socket.AF_INET,  # Internet
                             socket.SOCK_DGRAM)  # UDP
-    soc_bat.connect((host, port))
+    soc.connect((host, port))
 
     run_event = threading.Event()
 
     run_event.set()
 
-    return WorkingThread(run_event, soc_bat, [], min_power, max_power, name)
+    return WorkingThread(run_event, soc, [], min_power, max_power, logger)

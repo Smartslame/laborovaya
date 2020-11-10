@@ -11,11 +11,12 @@ import numpy as np
 import yaml
 from elasticsearch import Elasticsearch
 
+import battery_controller
 import model_utils
 import modbus_simul_utils
 
-TIME_QUANT = 10
-TIME_SCALE = 60
+TIME_QUANT = 5
+TIME_SCALE = 1
 
 POWER_REFS_LOG = 'POWER_REFS_LOG',
 STATES_LOG = 'STATES_LOG',
@@ -55,48 +56,57 @@ def send_to_elastic(elastic, model, wind_power, battery_power):
         doc[f'heater_{1 + i}_temperature'] = b.get_temp()
 
     doc['battery_soc'] = model.battery.get_soc()
-    doc['wind_unused_energy'] = model.wind_unused_energy
-    doc['diesel_energy'] = model.diesel_energy
+    doc['wind_unused_energy'] = model.wind_burner.get_energy()
+    doc['diesel_energy'] = model.gen_set.get_energy()
+    doc['wind_unused_power'] = model.wind_burner.current_power
+    doc['diesel_power'] = model.gen_set.current_power
 
-    elastic.index(index='laborovaya', body=doc)
+    elastic.index(index='model', body=doc)
 
 
 class ThreadSend(threading.Thread):
 
-    def __init__(self, run_event, elastic, model, logger):
+    def __init__(self, run_event, elastic, model, logger, charge_controller, discharge_controller):
         threading.Thread.__init__(self)
-        self.delay = TIME_QUANT / 3  # energy sensors updates at triple freq
+        self.delay = TIME_QUANT  # energy sensors updates at triple freq
         self.model = model
         self.run_event = run_event
         self.elastic = elastic
         self.logger = logger
+        self.charge_controller = charge_controller
+        self.discharge_controller = discharge_controller
 
     def run(self):
         i = 0
         battery_power = 0
         while self.run_event.is_set():
             try:
-                wind_power, bp = self.model.process_cycle()
+                self.model.process_cycle()
+                wind_power = self.model.wind_gen.current_power
+                print("Wind power = {}".format(wind_power))
 
-                if not i % 3:
-                    battery_power = bp
+                battery_power = self.model.battery.current_power
 
-                # try:
-                #     send_to_elastic(self.elastic, self.model, wind_power, battery_power)
-                # except Exception as e:
-                #     stderr.write(str(e))
+                gen_inverter_ref, load_inverter_ref = self.model.get_hardware_references()
+
+                try:
+                    send_to_elastic(self.elastic, self.model, wind_power, battery_power)
+                except Exception as e:
+                    stderr.write(str(e))
 
                 print("send to battery:power = {}, energy = {} , soc = {}".format(battery_power,
                                                                                   self.model.battery.get_energy(),
                                                                                   self.model.battery.get_soc()))
-                self.logger.log(BATTERY_LOG, [battery_power, self.model.battery.get_energy()])
-                # write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
-                if not i % 3:
-                    data = model_utils.get_weather_and_states_data(self.model, wind_power)
-                    print('send to others: ', data)
-                    self.logger.log(OTHERS_LOG, data)
-                    # write_wind_data(wind_power)
-                    # write_heaters_data(self.model)
+                self.logger.log(BATTERY_LOG, [battery_power, self.model.battery.get_energy(), self.model.battery.get_soc()])
+                modbus_simul_utils.write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
+
+                data = model_utils.get_weather_and_states_data(self.model, wind_power)
+                #print('send to others: ', data)
+                self.logger.log(OTHERS_LOG, data)
+                modbus_simul_utils.write_wind_data(wind_power)
+                modbus_simul_utils.write_heaters_data(self.model)
+                self.charge_controller.update(gen_inverter_ref / 1000)
+                self.discharge_controller.update(- load_inverter_ref / 1000)
                 i += 1
                 time.sleep(self.delay)
 
@@ -114,11 +124,11 @@ class ThreadListen(threading.Thread):
 
     def run(self):
         while self.run_event.is_set():
-            # for i in range(3):
-            #     data = modbus_simul_utils.read_heater_data(i)
-            #     with self.model.lock:
-            #         self.model.all_powers[i].append([time.time(), data['cfg_power']])
-            #         self.model.save_state()
+            for i in range(3):
+                data = modbus_simul_utils.read_heater_data(i)
+                with self.model.lock:
+                    self.model.all_powers[i].append([time.time(), data['cfg_power']])
+                    #self.model.save_state()
             time.sleep(1)
 
 
@@ -135,7 +145,7 @@ def main():
     random.seed(config['seed'])
 
     appenders = {}
-    data_path = config['data_path']
+    data_path = config['log_path']
     appenders[POWER_REFS_LOG] = os.path.join(data_path, 'prefs_log.csv')
     appenders[STATES_LOG] = os.path.join(data_path, 'states_log.csv')
     appenders[COMMON_LOG] = os.path.join(data_path, 'common_log')
@@ -143,7 +153,7 @@ def main():
     appenders[OTHERS_LOG] = os.path.join(data_path, 'others_log.csv')
     logger = Logger(appenders)
 
-    model = model_utils.get_model(TIME_QUANT, TIME_SCALE, logger, config['state_file'], config['uninterpolated_data'])
+    model = model_utils.get_model(TIME_QUANT, TIME_SCALE, logger, config['state_file'], config['weather_data'])
 
     try:
         model.load_state(config['state_file'])
@@ -155,10 +165,15 @@ def main():
 
     elastic = Elasticsearch([f"http://{config['elasticsearch']['auth']}@{config['elasticsearch']['host']}"])
 
-    send = ThreadSend(run_event, elastic, model, logger)
-
+    charge_controller = battery_controller.create_controller(config['charge_host'], config['charge_port'], data_path,
+                                                             "charge")
+    discharge_controller = battery_controller.create_controller(config['discharge_host'], config['discharge_port'],
+                                                                data_path, "discharge")
+    send = ThreadSend(run_event, elastic, model, logger, charge_controller, discharge_controller)
     listen = ThreadListen(run_event, model, logger)
 
+    charge_controller.start()
+    discharge_controller.start()
     send.start()
     listen.start()
 
