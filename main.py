@@ -89,22 +89,22 @@ class ThreadSend(threading.Thread):
 
                 gen_inverter_ref, load_inverter_ref = self.model.get_hardware_references()
 
-                try:
-                    send_to_elastic(self.elastic, self.model, wind_power, battery_power)
-                except Exception as e:
-                    stderr.write(str(e))
+#                 try:
+#                     send_to_elastic(self.elastic, self.model, wind_power, battery_power)
+#                 except Exception as e:
+#                     stderr.write(str(e))
 
                 print("send to battery:power = {}, energy = {} , soc = {}".format(battery_power,
                                                                                   self.model.battery.get_energy(),
                                                                                   self.model.battery.get_soc()))
                 self.logger.log(BATTERY_LOG, [battery_power, self.model.battery.get_energy(), self.model.battery.get_soc()])
-                modbus_simul_utils.write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
+#                modbus_simul_utils.write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
 
                 data = model_utils.get_weather_and_states_data(self.model, wind_power)
                 #print('send to others: ', data)
                 self.logger.log(OTHERS_LOG, data)
-                modbus_simul_utils.write_wind_data(wind_power)
-                modbus_simul_utils.write_heaters_data(self.model)
+#                 modbus_simul_utils.write_wind_data(wind_power)
+#                 modbus_simul_utils.write_heaters_data(self.model)
                 self.charge_controller.update(gen_inverter_ref / 1000)
                 self.discharge_controller.update(- load_inverter_ref / 1000)
                 i += 1
@@ -125,9 +125,9 @@ class ThreadListen(threading.Thread):
     def run(self):
         while self.run_event.is_set():
             for i in range(3):
-                data = modbus_simul_utils.read_heater_data(i)
+#                data = modbus_simul_utils.read_heater_data(i)
                 with self.model.lock:
-                    self.model.all_powers[i].append([time.time(), data['cfg_power']])
+                    self.model.all_powers[i].append([time.time(), 10000])
                     #self.model.save_state()
             time.sleep(1)
 
