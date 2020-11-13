@@ -28,6 +28,14 @@ def write_wind_data(power):
     cdaput(device, "status_power", power)
 
 
+def write_outside_temp_data(temp):
+    # TODO reconfig modbus simul
+    device = "heater{}".format(4)
+    print("write data to device " + device)
+    print("outdoor_temperature " + temp)
+    cdaput(device, "indoor_temperature", temp)
+
+
 def write_heaters_data(model):
     for i in range(model.num_buildings):
         device = "heater{}".format(i + 1)
