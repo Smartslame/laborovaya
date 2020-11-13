@@ -173,8 +173,10 @@ def main():
     send = ThreadSend(run_event, elastic, model, logger, charge_controller, discharge_controller)
     listen = ThreadListen(run_event, model, logger)
 
-    charge_controller.start()
-    discharge_controller.start()
+    if config['use_real_bat']:
+        charge_controller.start()
+        discharge_controller.start()
+
     send.start()
     listen.start()
 
