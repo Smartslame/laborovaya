@@ -32,7 +32,7 @@ def write_outside_temp_data(temp):
     # TODO reconfig modbus simul
     device = "heater{}".format(4)
     print("write data to device " + device)
-    print("outdoor_temperature " + temp)
+    print("outdoor_temperature " + str(temp))
     cdaput(device, "indoor_temperature", temp)
 
 
