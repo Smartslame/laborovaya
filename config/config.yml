@@ -1,0 +1,12 @@
+elasticsearch:
+  host: "192.168.143.50:9200"
+  auth: "elastic:*******"
+log_path: "log"
+weather_data: "data/Novikivo_10000.csv"
+state_file: "data/state"
+seed: 322
+charge_host: "192.168.143.42"
+charge_port: 7771
+discharge_host: "192.168.143.41"
+discharge_port: 7772
+use_real_bat: False
