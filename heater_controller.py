@@ -26,13 +26,17 @@ class HeaterController:
         self.instrument.mode = mode
 
     def get_cur_power(self):
+        cur_power = 0.
         try:
             cur_power = self.instrument.read_register(97)
             self.logger.info("current power: " + str(cur_power))
         except Exception as e:
             self.logger.error(e)
 
+        return cur_power / 1000.
+
     def set_power(self, power):
+        power = round(power * 100, 1)
         try:
             if not self.has_errors():
                 self.instrument.write_register(96, power, 1, functioncode=6)
