@@ -50,7 +50,7 @@ class Battery(EnergyMeter):
 
 class Building(EnergyMeter):
     def __init__(self, time_quant, T=24, size=(15, 40, 2.5), R_st=0.3, beta=30, sigma=0.05,
-                 description='теплоаккумулятор'):
+                 max_power=20000, description='теплоаккумулятор'):
         self.beta = beta * 3600  # коэффициент аккумуляции (сек), см. выше
         self.T = T
         self.time_quant = time_quant  # секунды
@@ -62,7 +62,7 @@ class Building(EnergyMeter):
         self.sigma = sigma  # случайные изменения теплопотерь, связанные с открытием форточек, выше у маленьких домов
         self.ventilation = 0  # моделируется случайным блужданием, чтобы не было частых резких скачков
         self.description = description
-        self.max_power = 20000  # round(self.get_loss_P() * (20 - (-40)) * 1.8)
+        self.max_power = max_power  # round(self.get_loss_P() * (20 - (-40)) * 1.8)
         print(self.description, 'heat capacitance, kJ/K:', round(self.C / 1000), 'Max loss (-30C), kW:',
               round(self.get_loss_P() * (20 - (-30))) / 1000)
 
@@ -91,6 +91,9 @@ class Building(EnergyMeter):
         if not state:
             pass
         self.T, self.energy, self.ventilation = state
+    
+    def get_power_percentage(self):
+        return self.current_power / self.max_power
 
 
 class Model:

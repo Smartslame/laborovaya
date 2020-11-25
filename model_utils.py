@@ -30,14 +30,10 @@ def get_weather_data(TIME_QUANT, TIME_SCALE, nrows=None, weather_data_path=None)
 
 def create_buildings(TIME_QUANT):
     r = lambda: 0.8 + random.random() * 0.4
-    # panelka_neutepl = Building(size=(15, 70, 2.8 * 5), T=20 * r(), R_st=0.25, beta=25, sigma=0.02,
-    #                            description='5-эт панелька')
-    wooden = [Building(size=(8 * r(), 12 * r(), 3.0 * r()), beta=30 * r(), R_st=0.75 * r(), sigma=0.1 * r(),
-                       description='wooden house', time_quant=TIME_QUANT) for _ in
-              range(3)]  # 10-20 кВт котлы в такие ставят, судя по интернетику
-    # magazin = Building(size=(20, 40, 5.5), beta=20, T=20 * r(), R_st=1, sigma=0.02, description='магазин')
-    # buildings = [magazin] + [panelka_neutepl] #+ wooden
-    buildings = wooden
+    buildings = [Building(size=(5 * r(), 12 * r() * (max_power / 20000), 2.5 * r()),
+                 beta=15 * r(), R_st=0.5 * r(), sigma=0.1 * r(), max_power=max_power,
+                 description='wooden house', time_quant=TIME_QUANT) 
+                for max_power in [6000, 12000, 18000]]
 
     print('sum of nominal heaters powers (losses at -30C), kW: ',
           sum([b.get_loss_P() * (20 - (-30)) for b in buildings]) / 1000)
