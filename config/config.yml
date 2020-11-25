@@ -10,3 +10,6 @@ charge_port: 7771
 discharge_host: "192.168.143.41"
 discharge_port: 7772
 use_real_bat: False
+use_real_heaters: False
+heaters_port: "/dev/ttyMI2"
+heaters_addr: [3]
