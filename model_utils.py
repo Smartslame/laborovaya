@@ -57,7 +57,7 @@ def get_weather_and_states_data(model, wind_power):
     return data
 
 
-def get_model(time_quant, time_scale, logger, state_file, weather_data_path):
-    dfi = get_weather_data(time_quant, time_scale, nrows=None, weather_data_path=weather_data_path)
+def get_model(time_quant, time_scale, logger, state_file, weather_data_path, nrows=None):
+    dfi = get_weather_data(time_quant, time_scale, nrows=nrows, weather_data_path=weather_data_path)
     return Model(create_buildings(time_quant), WindGen(), Battery(30000, min_soc=0.2, max_soc=0.8), dfi, time.time(), logger, state_file,
                  time_scale)
