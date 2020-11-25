@@ -107,9 +107,9 @@ class ThreadSend(threading.Thread):
                 self.logger.log(OTHERS_LOG, data)
                 modbus_simul_utils.write_wind_data(wind_power)
                 modbus_simul_utils.write_heaters_data(self.model)
-                for i in len(self.heater_controllers):
-                    persentage = self.model.buildings[i].get_power_percentage()
-                    self.heater_controllers[i].set_power(persentage)
+                for i in range(len(self.heater_controllers)):
+                    percentage = self.model.buildings[i].get_power_percentage()
+                    self.heater_controllers[i].set_power(percentage)
                 modbus_simul_utils.write_outside_temp_data(self.model.get_weather_at_time()[1])
                 self.charge_controller.update(gen_inverter_ref / 1000)
                 self.discharge_controller.update(- load_inverter_ref / 1000)
