@@ -30,8 +30,8 @@ def get_weather_data(TIME_QUANT, TIME_SCALE, nrows=None, weather_data_path=None)
 
 def create_buildings(TIME_QUANT):
     r = lambda: 0.8 + random.random() * 0.4
-    buildings = [Building(size=(5 * r(), 12 * r() * (max_power / 20000), 2.5 * r()),
-                 beta=15 * r(), R_st=0.5 * r(), sigma=0.1 * r(), max_power=max_power,
+    buildings = [Building(size=(8 * r() * (max_power / 20000), 10 * r() * (max_power / 20000), 2.5 * r()),
+                 beta=15 * r(), R_st=0.5 * r(), sigma=0.03 * r(), max_power=max_power,
                  description='wooden house', time_quant=TIME_QUANT) 
                 for max_power in [6000, 12000, 18000]]
 
