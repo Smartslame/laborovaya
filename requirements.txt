@@ -8,3 +8,6 @@ PyYAML==5.3.1
 scipy==1.5.3
 six==1.15.0
 urllib3==1.25.11
+
+minimalmodbus~=1.0.2
+pyserial~=3.5

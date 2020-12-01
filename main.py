@@ -1,7 +1,6 @@
 import argparse
 import os
 import random
-
 import threading
 import time
 from datetime import datetime, timezone
@@ -12,8 +11,9 @@ import yaml
 from elasticsearch import Elasticsearch
 
 import battery_controller
-import model_utils
 import modbus_simul_utils
+import model_utils
+from heater_controller import HeaterController
 
 TIME_QUANT = 5
 TIME_SCALE = 1
@@ -66,7 +66,7 @@ def send_to_elastic(elastic, model, wind_power, battery_power):
 
 class ThreadSend(threading.Thread):
 
-    def __init__(self, run_event, elastic, model, logger, charge_controller, discharge_controller):
+    def __init__(self, run_event, elastic, model, logger, charge_controller, discharge_controller, heater_controllers):
         threading.Thread.__init__(self)
         self.delay = TIME_QUANT  # energy sensors updates at triple freq
         self.model = model
@@ -75,6 +75,7 @@ class ThreadSend(threading.Thread):
         self.logger = logger
         self.charge_controller = charge_controller
         self.discharge_controller = discharge_controller
+        self.heater_controllers = heater_controllers
 
     def run(self):
         i = 0
@@ -97,14 +98,18 @@ class ThreadSend(threading.Thread):
                 print("send to battery:power = {}, energy = {} , soc = {}".format(battery_power,
                                                                                   self.model.battery.get_energy(),
                                                                                   self.model.battery.get_soc()))
-                self.logger.log(BATTERY_LOG, [battery_power, self.model.battery.get_energy(), self.model.battery.get_soc()])
+                self.logger.log(BATTERY_LOG,
+                                [battery_power, self.model.battery.get_energy(), self.model.battery.get_soc()])
                 modbus_simul_utils.write_battery_data(self.model.battery.get_soc(), self.model.battery.get_energy())
 
                 data = model_utils.get_weather_and_states_data(self.model, wind_power)
-                #print('send to others: ', data)
+                # print('send to others: ', data)
                 self.logger.log(OTHERS_LOG, data)
                 modbus_simul_utils.write_wind_data(wind_power)
                 modbus_simul_utils.write_heaters_data(self.model)
+                for i in range(len(self.heater_controllers)):
+                    percentage = self.model.buildings[i].get_power_percentage()
+                    self.heater_controllers[i].set_power(percentage)
                 modbus_simul_utils.write_outside_temp_data(self.model.get_weather_at_time()[1])
                 self.charge_controller.update(gen_inverter_ref / 1000)
                 self.discharge_controller.update(- load_inverter_ref / 1000)
@@ -129,7 +134,7 @@ class ThreadListen(threading.Thread):
                 data = modbus_simul_utils.read_heater_data(i)
                 with self.model.lock:
                     self.model.all_powers[i].append([time.time(), data['cfg_power']])
-                    #self.model.save_state()
+                    # self.model.save_state()
             time.sleep(1)
 
 
@@ -170,7 +175,14 @@ def main():
                                                              "charge")
     discharge_controller = battery_controller.create_controller(config['discharge_host'], config['discharge_port'],
                                                                 data_path, "discharge")
-    send = ThreadSend(run_event, elastic, model, logger, charge_controller, discharge_controller)
+
+    heater_controllers = []
+    if config['use_real_heaters']:
+        heater_controllers = [
+            HeaterController(config['heaters_port'], addr, log_folder=config['log_path'], log_name="heater" + str(addr))
+            for addr in config['heaters_addr']]
+
+    send = ThreadSend(run_event, elastic, model, logger, charge_controller, discharge_controller, heater_controllers)
     listen = ThreadListen(run_event, model, logger)
 
     if config['use_real_bat']:

@@ -2,7 +2,7 @@ elasticsearch:
   host: "192.168.143.50:9200"
   auth: "elastic:c6tBwMBLuLsusscwuHcA"
 log_path: "log"
-weather_data: "data/Novikovo_10000.csv"
+weather_data: "data/Novikovo_5s_1year.csv"
 state_file: "data/state"
 seed: 322
 charge_host: "192.168.143.42"
@@ -10,3 +10,6 @@ charge_port: 7771
 discharge_host: "192.168.143.41"
 discharge_port: 7772
 use_real_bat: False
+use_real_heaters: False
+heaters_port: "/dev/ttyMI2"
+heaters_addr: [3]
