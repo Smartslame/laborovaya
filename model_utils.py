@@ -57,6 +57,24 @@ def get_weather_and_states_data(model, wind_power):
     return data
 
 
+def get_averages(updates, time_begin, time_end):
+    """ updates is an array of histories of variable's updates
+    updates[i] is an array of pairs [new_value_of_variable, time_of_update] 
+    After invocation each element of updates must contain only one pair [current_value, time_of_invocation] """
+    avg_values = np.zeros(len(updates))
+
+    if time_begin == time_end:  
+        raise RuntimeError('sequntial invocations at exactly the same time: time_begin==time_end')
+    for i in range(len(updates)):
+        updates[i].append([time_end, updates[i][-1][1]])  # вставим правую границу цикла
+        times = np.array(updates[i])[:, 0]
+        values = np.array(updates[i])[:, 1]
+        avg_values[i] = ((times[1:] - times[:-1]) * values[:-1]).sum() / (time_end - time_begin)
+        updates[i] = [updates[i][-1]]  # стираем прошедший цикл
+
+    return avg_values
+
+
 def get_model(time_quant, time_scale, logger, state_file, weather_data_path, nrows=None):
     dfi = get_weather_data(time_quant, time_scale, nrows=nrows, weather_data_path=weather_data_path)
     return Model(create_buildings(time_quant), WindGen(), Battery(30000, min_soc=0.2, max_soc=0.8), dfi, time.time(), logger, state_file,

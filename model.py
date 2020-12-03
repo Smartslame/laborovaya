@@ -6,6 +6,8 @@ import time
 import numpy as np
 from scipy.interpolate import interp1d
 
+import model_utils
+
 class EnergyMeter:
     energy = 0
     current_power = 0 
@@ -128,20 +130,9 @@ class Model:
             now = time.time()
             self.time_passed += now - self.last_update
             time_delta = (now - self.last_update) * self.time_scale
-            avg_powers = np.zeros(self.num_buildings)
             wind, T_out = self.get_weather_at_time()
-
-            if now != self.last_update:  # вроде иначе невозможно, но
-                for n in range(self.num_buildings):
-                    self.all_powers[n].append(
-                        [now, self.all_powers[n][-1][1]])  # вставим правую границу цикла
-                    times = np.array(self.all_powers[n])[:, 0]
-                    powers = np.array(self.all_powers[n])[:, 1]
-                    # print('times:', times - self.start_time)
-                    # print('powers:', powers)
-                    avg_powers[n] = ((np.roll(times, -1) - times)[:-1] * powers[:-1]).sum() / (now - self.last_update)
-                    avg_powers[n] = self.buildings[n].update_temp(avg_powers[n], T_out, time_delta)
-                    self.all_powers[n] = [self.all_powers[n][-1]]  # стираем прошедший цикл
+            avg_powers = model_utils.get_averages(self.all_powers, self.last_update, now)
+            avg_powers = np.array([self.buildings[i].update_temp(p, T_out, time_delta) for i,p in enumerate(avg_powers)])
 
         wind_power = self.wind_gen.gen_power(wind)
         self.wind_gen.update(wind_power, time_delta)
